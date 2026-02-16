@@ -201,11 +201,13 @@ jobs:
                           
                           Write-Host "Using EXE: $($mainExe.Name)"
                           
-                          # Calculate SHA256 hash
-                          $hash = (Get-FileHash -Path $mainExe.FullName -Algorithm SHA256).Hash.ToLower()
+                          # Calculate SHA256 and SHA512 hashes
+                          $sha256 = (Get-FileHash -Path $mainExe.FullName -Algorithm SHA256).Hash.ToLower()
+                          $sha512 = (Get-FileHash -Path $mainExe.FullName -Algorithm SHA512).Hash.ToLower()
                           $size = $mainExe.Length
                           
-                          Write-Host "SHA256: $hash"
+                          Write-Host "SHA256: $sha256"
+                          Write-Host "SHA512: $sha512"
                           Write-Host "Size: $size"
                           
                           # Create new YAML content with correct hashes
@@ -215,8 +217,8 @@ jobs:
                               files = @(
                                   @{
                                       url = $mainExe.Name
-                                      sha512 = $null
-                                      sha256 = $hash
+                                      sha512 = $sha512
+                                      sha256 = $sha256
                                       size = $size
                                       blockMapSize = $null
                                   }
@@ -227,8 +229,8 @@ jobs:
                           $newYmlContent = "version: $version`n"
                           $newYmlContent += "files:`n"
                           $newYmlContent += "  - url: $($mainExe.Name)`n"
-                          $newYmlContent += "    sha512: null`n"
-                          $newYmlContent += "    sha256: $hash`n"
+                          $newYmlContent += "    sha512: $sha512`n"
+                          $newYmlContent += "    sha256: $sha256`n"
                           $newYmlContent += "    size: $size`n"
                           $newYmlContent += "    blockMapSize: null`n"
                           $newYmlContent += "releaseDate: $releaseDate"
@@ -399,18 +401,21 @@ jobs:
                     if [[ -n "$APP_IMAGE" && -f "$APP_IMAGE" ]]; then
                       echo "  Found AppImage: $(basename "$APP_IMAGE")"
                       
-                      # Calculate SHA256 hash
-                      HASH=$(sha256sum "$APP_IMAGE" | awk '{print $1}')
+                      # Calculate SHA256 and SHA512 hashes
+                      HASH256=$(sha256sum "$APP_IMAGE" | awk '{print $1}')
+                      HASH512=$(sha512sum "$APP_IMAGE" | awk '{print $1}')
                       SIZE=$(stat -c %s "$APP_IMAGE" 2>/dev/null || stat -f %z "$APP_IMAGE" 2>/dev/null)
                       
-                      echo "  SHA256: $HASH"
+                      echo "  SHA256: $HASH256"
+                      echo "  SHA512: $HASH512"
                       echo "  Size: $SIZE"
                       
                       # Create new YAML with correct hashes using printf to avoid YAML parsing issues
-                      printf "version: %s\nfiles:\n  - url: %s\n    sha512: null\n    sha256: %s\n    size: %s\n    blockMapSize: null\nreleaseDate: %s\n" \
+                      printf "version: %s\nfiles:\n  - url: %s\n    sha512: %s\n    sha256: %s\n    size: %s\n    blockMapSize: null\nreleaseDate: %s\n" \
                         "$VERSION" \
                         "$(basename "$APP_IMAGE")" \
-                        "$HASH" \
+                        "$HASH512" \
+                        "$HASH256" \
                         "$SIZE" \
                         "$(date -u +'%Y-%m-%dT%H:%M:%S.000Z')" > "$YML_FILE"
                       echo "  ✅ Updated $YML_FILE"
@@ -632,18 +637,21 @@ jobs:
                     if [[ -n "$DMG_FILE" && -f "$DMG_FILE" ]]; then
                       echo "  Found DMG: $(basename "$DMG_FILE")"
                       
-                      # Calculate SHA256 hash of the stapled DMG
-                      HASH=$(shasum -a 256 "$DMG_FILE" | awk '{print $1}')
+                      # Calculate SHA256 and SHA512 hashes of the stapled DMG
+                      HASH256=$(shasum -a 256 "$DMG_FILE" | awk '{print $1}')
+                      HASH512=$(shasum -a 512 "$DMG_FILE" | awk '{print $1}')
                       SIZE=$(stat -f '%z' "$DMG_FILE" 2>/dev/null || stat -c '%s' "$DMG_FILE" 2>/dev/null)
                       
-                      echo "  SHA256: $HASH"
+                      echo "  SHA256: $HASH256"
+                      echo "  SHA512: $HASH512"
                       echo "  Size: $SIZE"
                       
                       # Create new YAML with correct hashes using printf to avoid YAML parsing issues
-                      printf "version: %s\nfiles:\n  - url: %s\n    sha512: null\n    sha256: %s\n    size: %s\n    blockMapSize: null\nreleaseDate: %s\n" \
+                      printf "version: %s\nfiles:\n  - url: %s\n    sha512: %s\n    sha256: %s\n    size: %s\n    blockMapSize: null\nreleaseDate: %s\n" \
                         "$VERSION" \
                         "$(basename "$DMG_FILE")" \
-                        "$HASH" \
+                        "$HASH512" \
+                        "$HASH256" \
                         "$SIZE" \
                         "$(date -u +'%Y-%m-%dT%H:%M:%S.000Z')" > "$YML_FILE"
                       echo "  ✅ Updated $YML_FILE"
