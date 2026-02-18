@@ -50,6 +50,8 @@ export const CONNECTION_CHANNELS = {
     TEST_CONNECTION: "test-connection",
     IS_TOKEN_EXPIRED: "is-connection-token-expired",
     REFRESH_TOKEN: "refresh-connection-token",
+    CHECK_BROWSER_INSTALLED: "check-browser-installed",
+    GET_BROWSER_PROFILES: "get-browser-profiles",
 } as const;
 
 // Tool-related IPC channels
@@ -159,6 +161,32 @@ export const DATAVERSE_CHANNELS = {
     DISASSOCIATE: "dataverse.disassociate",
     DEPLOY_SOLUTION: "dataverse.deploySolution",
     GET_IMPORT_JOB_STATUS: "dataverse.getImportJobStatus",
+    // Metadata helper utilities
+    BUILD_LABEL: "dataverse.buildLabel",
+    GET_ATTRIBUTE_ODATA_TYPE: "dataverse.getAttributeODataType",
+    // Entity (Table) metadata operations
+    CREATE_ENTITY_DEFINITION: "dataverse.createEntityDefinition",
+    UPDATE_ENTITY_DEFINITION: "dataverse.updateEntityDefinition",
+    DELETE_ENTITY_DEFINITION: "dataverse.deleteEntityDefinition",
+    // Attribute (Column) metadata operations
+    CREATE_ATTRIBUTE: "dataverse.createAttribute",
+    UPDATE_ATTRIBUTE: "dataverse.updateAttribute",
+    DELETE_ATTRIBUTE: "dataverse.deleteAttribute",
+    CREATE_POLYMORPHIC_LOOKUP_ATTRIBUTE: "dataverse.createPolymorphicLookupAttribute",
+    // Relationship metadata operations
+    CREATE_RELATIONSHIP: "dataverse.createRelationship",
+    UPDATE_RELATIONSHIP: "dataverse.updateRelationship",
+    DELETE_RELATIONSHIP: "dataverse.deleteRelationship",
+    // Global option set (choice) metadata operations
+    CREATE_GLOBAL_OPTION_SET: "dataverse.createGlobalOptionSet",
+    UPDATE_GLOBAL_OPTION_SET: "dataverse.updateGlobalOptionSet",
+    DELETE_GLOBAL_OPTION_SET: "dataverse.deleteGlobalOptionSet",
+    // Option value modification actions
+    INSERT_OPTION_VALUE: "dataverse.insertOptionValue",
+    UPDATE_OPTION_VALUE: "dataverse.updateOptionValue",
+    DELETE_OPTION_VALUE: "dataverse.deleteOptionValue",
+    ORDER_OPTION: "dataverse.orderOption",
+    GET_CSDL_DOCUMENT: "dataverse.getCSDLDocument",
 } as const;
 
 // Event-related IPC channels (from main to renderer)
