@@ -568,51 +568,94 @@ jobs:
             - name: Regenerate latest-mac.yml with correct SHA256 hashes
               shell: bash
               run: |
-                  echo "🔄 Regenerating latest-mac.yml with stapled artifact hashes..."
-
-                  # Find all YAML files
-                  YML_FILES=$(find notarize -name "latest*.yml" -o -name "*-mac.yml")
-
-                  if [[ -z "$YML_FILES" ]]; then
-                    echo "⚠️ No YAML files found, skipping regeneration"
-                    exit 0
+                  echo "🔄 Merging macOS x64 and ARM64 latest-mac.yml files..."
+                  
+                  # Find all DMG files
+                  X64_DMG=$(find notarize -name "*-x64-mac.dmg" -type f | head -n 1)
+                  ARM64_DMG=$(find notarize -name "*-arm64-mac.dmg" -type f | head -n 1)
+                  
+                  if [[ -z "$X64_DMG" || -z "$ARM64_DMG" ]]; then
+                      echo "⚠️ One or both macOS DMG files not found. Skipping merge."
+                      echo "X64_DMG: $X64_DMG"
+                      echo "ARM64_DMG: $ARM64_DMG"
+                      
+                      # Fallback to single architecture (original behavior)
+                      YML_FILES=$(find notarize -name "latest*.yml" -o -name "*-mac.yml")
+                      if [[ -n "$YML_FILES" ]]; then
+                          for YML_FILE in $YML_FILES; do
+                              VERSION=$(grep -oP 'version:\s+\K[^\s]+' "$YML_FILE" || echo "unknown")
+                              DMG_FILE=$(find "$(dirname "$YML_FILE")" -maxdepth 1 -name "*.dmg" | head -n 1)
+                              if [[ -n "$DMG_FILE" && -f "$DMG_FILE" ]]; then
+                                  HASH256=$(shasum -a 256 "$DMG_FILE" | awk '{print $1}')
+                                  HASH512=$(shasum -a 512 "$DMG_FILE" | awk '{print $1}')
+                                  SIZE=$(stat -f '%z' "$DMG_FILE" 2>/dev/null || stat -c '%s' "$DMG_FILE" 2>/dev/null)
+                                  printf "version: %s\nfiles:\n  - url: %s\n    sha512: %s\n    sha256: %s\n    size: %s\n    blockMapSize: null\nreleaseDate: %s\n" \
+                                    "$VERSION" "$(basename "$DMG_FILE")" "$HASH512" "$HASH256" "$SIZE" "$(date -u +'%Y-%m-%dT%H:%M:%S.000Z')" > "$YML_FILE"
+                              fi
+                          done
+                      fi
+                      exit 0
                   fi
-
-                  for YML_FILE in $YML_FILES; do
-                    echo "Processing: $YML_FILE"
-                    
-                    # Extract version from existing YAML
-                    VERSION=$(grep -oP 'version:\s+\K[^\s]+' "$YML_FILE" || echo "unknown")
-                    
-                    # Find the stapled DMG file in the same directory
-                    DMG_FILE=$(find "$(dirname "$YML_FILE")" -maxdepth 1 -name "*.dmg" | head -n 1)
-                    
-                    if [[ -n "$DMG_FILE" && -f "$DMG_FILE" ]]; then
-                      echo "  Found DMG: $(basename "$DMG_FILE")"
-                      
-                      # Calculate SHA256 and SHA512 hashes of the stapled DMG
-                      HASH256=$(shasum -a 256 "$DMG_FILE" | awk '{print $1}')
-                      HASH512=$(shasum -a 512 "$DMG_FILE" | awk '{print $1}')
-                      SIZE=$(stat -f '%z' "$DMG_FILE" 2>/dev/null || stat -c '%s' "$DMG_FILE" 2>/dev/null)
-                      
-                      echo "  SHA256: $HASH256"
-                      echo "  SHA512: $HASH512"
-                      echo "  Size: $SIZE"
-                      
-                      # Create new YAML with correct hashes using printf to avoid YAML parsing issues
-                      printf "version: %s\nfiles:\n  - url: %s\n    sha512: %s\n    sha256: %s\n    size: %s\n    blockMapSize: null\nreleaseDate: %s\n" \
-                        "$VERSION" \
-                        "$(basename "$DMG_FILE")" \
-                        "$HASH512" \
-                        "$HASH256" \
-                        "$SIZE" \
-                        "$(date -u +'%Y-%m-%dT%H:%M:%S.000Z')" > "$YML_FILE"
-                      echo "  ✅ Updated $YML_FILE"
-                    else
-                      echo "  ⚠️ No DMG found in $(dirname "$YML_FILE")"
-                    fi
+                  
+                  echo "Found X64 DMG: $(basename "$X64_DMG")"
+                  echo "Found ARM64 DMG: $(basename "$ARM64_DMG")"
+                  
+                  # Find any existing YAML to extract version
+                  EXISTING_YML=$(find notarize -name "latest*.yml" -o -name "*-mac.yml" | head -n 1)
+                  VERSION=$(if [ -n "$EXISTING_YML" ]; then awk '/^version:[[:space:]]*/ {print $2; exit}' "$EXISTING_YML"; fi 2>/dev/null || echo "unknown")
+                  
+                  echo "Version: $VERSION"
+                  
+                  # Calculate hashes for x64
+                  echo "🔐 Calculating hashes for x64 DMG..."
+                  X64_SHA256=$(shasum -a 256 "$X64_DMG" | awk '{print $1}')
+                  X64_SHA512=$(shasum -a 512 "$X64_DMG" | awk '{print $1}')
+                  X64_SIZE=$(stat -f '%z' "$X64_DMG" 2>/dev/null || stat -c '%s' "$X64_DMG" 2>/dev/null)
+                  
+                  echo "  SHA256: $X64_SHA256"
+                  echo "  SHA512: $X64_SHA512"
+                  echo "  Size: $X64_SIZE"
+                  
+                  # Calculate hashes for ARM64
+                  echo "🔐 Calculating hashes for ARM64 DMG..."
+                  ARM64_SHA256=$(shasum -a 256 "$ARM64_DMG" | awk '{print $1}')
+                  ARM64_SHA512=$(shasum -a 512 "$ARM64_DMG" | awk '{print $1}')
+                  ARM64_SIZE=$(stat -f '%z' "$ARM64_DMG" 2>/dev/null || stat -c '%s' "$ARM64_DMG" 2>/dev/null)
+                  
+                  echo "  SHA256: $ARM64_SHA256"
+                  echo "  SHA512: $ARM64_SHA512"
+                  echo "  Size: $ARM64_SIZE"
+                  
+                  # Create merged YAML with both architectures
+                  MERGED_YML="notarize/latest-mac.yml"
+                  cat > "$MERGED_YML" << EOF
+                  version: $VERSION
+                  files:
+                    - url: $(basename "$X64_DMG")
+                      sha512: $X64_SHA512
+                      sha256: $X64_SHA256
+                      size: $X64_SIZE
+                      blockMapSize: null
+                    - url: $(basename "$ARM64_DMG")
+                      sha512: $ARM64_SHA512
+                      sha256: $ARM64_SHA256
+                      size: $ARM64_SIZE
+                      blockMapSize: null
+                  releaseDate: $(date -u +'%Y-%m-%dT%H:%M:%S.000Z')
+                  EOF
+                  
+                  echo ""
+                  echo "✅ Merged latest-mac.yml created:"
+                  cat "$MERGED_YML"
+                  
+                  # Remove any other YAML files in subdirectories to prevent conflicts
+                  find notarize -name "latest*.yml" -o -name "*-mac.yml" | while read yml; do
+                      if [[ "$yml" != "$MERGED_YML" ]]; then
+                          rm -f "$yml"
+                          echo "Removed: $yml"
+                      fi
                   done
-
+                  
                   echo "✅ Regeneration complete"
 
             - name: Upload stapled macOS artifacts
@@ -652,11 +695,97 @@ jobs:
             - name: Display structure of downloaded files
               run: ls -R artifacts
 
+            - name: Merge Windows latest.yml files
+              run: |
+                  echo "🔄 Merging Windows x64 and ARM64 latest.yml files..."
+                  
+                  # Find the Windows YAML files
+                  X64_YML=$(find artifacts/windows-x64-release -name "latest.yml" 2>/dev/null || echo "")
+                  ARM64_YML=$(find artifacts/windows-arm64-release -name "latest.yml" 2>/dev/null || echo "")
+                  
+                  if [[ -z "$X64_YML" || -z "$ARM64_YML" ]]; then
+                      echo "⚠️ One or both Windows YAML files not found. Skipping merge."
+                      echo "X64_YML: $X64_YML"
+                      echo "ARM64_YML: $ARM64_YML"
+                      exit 0
+                  fi
+                  
+                  echo "Found X64 YAML: $X64_YML"
+                  echo "Found ARM64 YAML: $ARM64_YML"
+                  
+                  # Extract version and release date from x64 YAML (should be the same for both)
+                  VERSION=$(grep -oP 'version:\s+\K[^\s]+' "$X64_YML" || echo "unknown")
+                  RELEASE_DATE=$(grep -oP 'releaseDate:\s+\K.+' "$X64_YML" || date -u +'%Y-%m-%dT%H:%M:%S.000Z')
+                  
+                  echo "Version: $VERSION"
+                  echo "Release Date: $RELEASE_DATE"
+                  
+                  # Find the EXE files in each artifact directory
+                  X64_EXE=$(find artifacts/windows-x64-release -name "*-x64-win.exe" -type f | head -n 1)
+                  ARM64_EXE=$(find artifacts/windows-arm64-release -name "*-arm64-win.exe" -type f | head -n 1)
+                  
+                  if [[ -z "$X64_EXE" || -z "$ARM64_EXE" ]]; then
+                      echo "❌ Could not find both x64 and ARM64 EXE files"
+                      echo "X64_EXE: $X64_EXE"
+                      echo "ARM64_EXE: $ARM64_EXE"
+                      exit 1
+                  fi
+                  
+                  echo "Found X64 EXE: $(basename "$X64_EXE")"
+                  echo "Found ARM64 EXE: $(basename "$ARM64_EXE")"
+                  
+                  # Calculate hashes for x64
+                  X64_SHA256=$(sha256sum "$X64_EXE" | awk '{print $1}')
+                  X64_SHA512=$(sha512sum "$X64_EXE" | awk '{print $1}')
+                  X64_SIZE=$(stat -c %s "$X64_EXE" 2>/dev/null || stat -f %z "$X64_EXE" 2>/dev/null)
+                  
+                  echo "X64 SHA256: $X64_SHA256"
+                  echo "X64 SHA512: $X64_SHA512"
+                  echo "X64 Size: $X64_SIZE"
+                  
+                  # Calculate hashes for ARM64
+                  ARM64_SHA256=$(sha256sum "$ARM64_EXE" | awk '{print $1}')
+                  ARM64_SHA512=$(sha512sum "$ARM64_EXE" | awk '{print $1}')
+                  ARM64_SIZE=$(stat -c %s "$ARM64_EXE" 2>/dev/null || stat -f %z "$ARM64_EXE" 2>/dev/null)
+                  
+                  echo "ARM64 SHA256: $ARM64_SHA256"
+                  echo "ARM64 SHA512: $ARM64_SHA512"
+                  echo "ARM64 Size: $ARM64_SIZE"
+                  
+                  # Create merged YAML with both architectures
+                  MERGED_YML="artifacts/latest.yml"
+                  cat > "$MERGED_YML" << EOF
+                  version: $VERSION
+                  files:
+                    - url: $(basename "$X64_EXE")
+                      sha512: $X64_SHA512
+                      sha256: $X64_SHA256
+                      size: $X64_SIZE
+                      blockMapSize: null
+                    - url: $(basename "$ARM64_EXE")
+                      sha512: $ARM64_SHA512
+                      sha256: $ARM64_SHA256
+                      size: $ARM64_SIZE
+                      blockMapSize: null
+                  releaseDate: $RELEASE_DATE
+                  EOF
+                  
+                  echo ""
+                  echo "✅ Merged latest.yml created:"
+                  cat "$MERGED_YML"
+                  
+                  # Remove the individual YAML files so they don't get uploaded
+                  rm -f "$X64_YML" "$ARM64_YML"
+                  echo ""
+                  echo "✅ Individual YAML files removed"
+              shell: bash
+
             - name: Prepare release files
               run: |
                   echo "📦 Preparing release files..."
                   mkdir -p release-files
 
+                  # Copy all release artifacts (excluding individual Windows YAML files which were removed)
                   find artifacts -type f \( -name "*.AppImage" -o -name "*.dmg" -o -name "*.zip" -o -name "*.exe" -o -name "*.msi" -o -name "*.pkg" -o -name "*.snap" -o -name "*.deb" -o -name "*.rpm" -o -name "latest*.yml" \) -exec cp {} release-files/ \;
 
                   echo "✅ Release files prepared"
