@@ -3,7 +3,7 @@
 # Merge macOS latest-mac.yml Script
 # 
 # This script generates a merged latest-mac.yml file containing both x64 and ARM64
-# macOS installers for electron-updater auto-update functionality.
+# macOS ZIP artifacts for electron-updater auto-update functionality.
 #
 # Usage:
 #   ./merge-macos-latest-yml.sh <version> [release-tag]
@@ -16,7 +16,7 @@
 #   ./merge-macos-latest-yml.sh 1.1.3
 #
 # The script will:
-# 1. Download or locate both x64 and ARM64 macOS DMG files
+# 1. Download or locate both x64 and ARM64 macOS ZIP files
 # 2. Calculate SHA256 and SHA512 hashes
 # 3. Generate a merged latest-mac.yml with both architectures
 #
@@ -45,79 +45,79 @@ echo ""
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
-# Function to find or download x64 DMG
-find_x64_dmg() {
+# Function to find or download x64 ZIP
+find_x64_zip() {
     if [[ -n "$RELEASE_TAG" ]]; then
-        echo "📥 Downloading x64 DMG from GitHub release $RELEASE_TAG..." >&2
-        local url="https://github.com/PowerPlatformToolBox/desktop-app/releases/download/${RELEASE_TAG}/Power-Platform-ToolBox-${VERSION}-x64-mac.dmg"
-        local dest="$TEMP_DIR/Power-Platform-ToolBox-${VERSION}-x64-mac.dmg"
+        echo "📥 Downloading x64 ZIP from GitHub release $RELEASE_TAG..." >&2
+        local url="https://github.com/PowerPlatformToolBox/desktop-app/releases/download/${RELEASE_TAG}/Power-Platform-ToolBox-${VERSION}-x64-mac.zip"
+        local dest="$TEMP_DIR/Power-Platform-ToolBox-${VERSION}-x64-mac.zip"
         
         if curl -sL -f -o "$dest" "$url"; then
             echo "$dest"
         else
-            echo "❌ Failed to download x64 DMG from $url" >&2
+            echo "❌ Failed to download x64 ZIP from $url" >&2
             return 1
         fi
     else
-        echo "🔍 Looking for x64 DMG in build/ directory..." >&2
-        local dmg=$(find build -name "*-x64-mac.dmg" -type f 2>/dev/null | head -n 1)
-        if [[ -n "$dmg" && -f "$dmg" ]]; then
-            echo "$dmg"
+        echo "🔍 Looking for x64 ZIP in build/ directory..." >&2
+        local zip=$(find build -name "*-x64-mac.zip" -type f 2>/dev/null | head -n 1)
+        if [[ -n "$zip" && -f "$zip" ]]; then
+            echo "$zip"
         else
-            echo "❌ Could not find x64 DMG in build/ directory" >&2
+            echo "❌ Could not find x64 ZIP in build/ directory" >&2
             return 1
         fi
     fi
 }
 
-# Function to find or download ARM64 DMG
-find_arm64_dmg() {
+# Function to find or download ARM64 ZIP
+find_arm64_zip() {
     if [[ -n "$RELEASE_TAG" ]]; then
-        echo "📥 Downloading ARM64 DMG from GitHub release $RELEASE_TAG..." >&2
-        local url="https://github.com/PowerPlatformToolBox/desktop-app/releases/download/${RELEASE_TAG}/Power-Platform-ToolBox-${VERSION}-arm64-mac.dmg"
-        local dest="$TEMP_DIR/Power-Platform-ToolBox-${VERSION}-arm64-mac.dmg"
+        echo "📥 Downloading ARM64 ZIP from GitHub release $RELEASE_TAG..." >&2
+        local url="https://github.com/PowerPlatformToolBox/desktop-app/releases/download/${RELEASE_TAG}/Power-Platform-ToolBox-${VERSION}-arm64-mac.zip"
+        local dest="$TEMP_DIR/Power-Platform-ToolBox-${VERSION}-arm64-mac.zip"
         
         if curl -sL -f -o "$dest" "$url"; then
             echo "$dest"
         else
-            echo "❌ Failed to download ARM64 DMG from $url" >&2
+            echo "❌ Failed to download ARM64 ZIP from $url" >&2
             return 1
         fi
     else
-        echo "🔍 Looking for ARM64 DMG in build/ directory..." >&2
-        local dmg=$(find build -name "*-arm64-mac.dmg" -type f 2>/dev/null | head -n 1)
-        if [[ -n "$dmg" && -f "$dmg" ]]; then
-            echo "$dmg"
+        echo "🔍 Looking for ARM64 ZIP in build/ directory..." >&2
+        local zip=$(find build -name "*-arm64-mac.zip" -type f 2>/dev/null | head -n 1)
+        if [[ -n "$zip" && -f "$zip" ]]; then
+            echo "$zip"
         else
-            echo "❌ Could not find ARM64 DMG in build/ directory" >&2
+            echo "❌ Could not find ARM64 ZIP in build/ directory" >&2
             return 1
         fi
     fi
 }
 
-# Find/download the DMG files
-X64_DMG=$(find_x64_dmg)
-ARM64_DMG=$(find_arm64_dmg)
+# Find/download the ZIP files
+X64_ZIP=$(find_x64_zip)
+ARM64_ZIP=$(find_arm64_zip)
 
-if [[ -z "$X64_DMG" || -z "$ARM64_DMG" ]]; then
-    echo "❌ Could not find both DMG files"
+if [[ -z "$X64_ZIP" || -z "$ARM64_ZIP" ]]; then
+    echo "❌ Could not find both ZIP files"
     exit 1
 fi
 
 echo ""
-echo "✅ Found x64 DMG: $(basename "$X64_DMG")"
-echo "✅ Found ARM64 DMG: $(basename "$ARM64_DMG")"
+echo "✅ Found x64 ZIP: $(basename "$X64_ZIP")"
+echo "✅ Found ARM64 ZIP: $(basename "$ARM64_ZIP")"
 echo ""
 
 # Calculate hashes for x64
-echo "🔐 Calculating hashes for x64 DMG..."
-X64_SHA256=$(shasum -a 256 "$X64_DMG" | awk '{print $1}')
-X64_SHA512=$(shasum -a 512 "$X64_DMG" | awk '{print $1}')
+echo "🔐 Calculating hashes for x64 ZIP..."
+X64_SHA256=$(shasum -a 256 "$X64_ZIP" | awk '{print $1}')
+X64_SHA512=$(shasum -a 512 "$X64_ZIP" | awk '{print $1}')
 # Try macOS stat first, then Linux stat
-if stat -f '%z' "$X64_DMG" >/dev/null 2>&1; then
-    X64_SIZE=$(stat -f '%z' "$X64_DMG")
+if stat -f '%z' "$X64_ZIP" >/dev/null 2>&1; then
+    X64_SIZE=$(stat -f '%z' "$X64_ZIP")
 else
-    X64_SIZE=$(stat -c '%s' "$X64_DMG")
+    X64_SIZE=$(stat -c '%s' "$X64_ZIP")
 fi
 
 echo "  SHA256: $X64_SHA256"
@@ -126,14 +126,14 @@ echo "  Size: $X64_SIZE bytes"
 echo ""
 
 # Calculate hashes for ARM64
-echo "🔐 Calculating hashes for ARM64 DMG..."
-ARM64_SHA256=$(shasum -a 256 "$ARM64_DMG" | awk '{print $1}')
-ARM64_SHA512=$(shasum -a 512 "$ARM64_DMG" | awk '{print $1}')
+echo "🔐 Calculating hashes for ARM64 ZIP..."
+ARM64_SHA256=$(shasum -a 256 "$ARM64_ZIP" | awk '{print $1}')
+ARM64_SHA512=$(shasum -a 512 "$ARM64_ZIP" | awk '{print $1}')
 # Try macOS stat first, then Linux stat
-if stat -f '%z' "$ARM64_DMG" >/dev/null 2>&1; then
-    ARM64_SIZE=$(stat -f '%z' "$ARM64_DMG")
+if stat -f '%z' "$ARM64_ZIP" >/dev/null 2>&1; then
+    ARM64_SIZE=$(stat -f '%z' "$ARM64_ZIP")
 else
-    ARM64_SIZE=$(stat -c '%s' "$ARM64_DMG")
+    ARM64_SIZE=$(stat -c '%s' "$ARM64_ZIP")
 fi
 
 echo "  SHA256: $ARM64_SHA256"
@@ -147,21 +147,17 @@ RELEASE_DATE=$(date -u +'%Y-%m-%dT%H:%M:%S.000Z')
 # Create merged latest-mac.yml
 OUTPUT_FILE="latest-mac.yml"
 
-cat > "$OUTPUT_FILE" << EOF
-version: $VERSION
-files:
-  - url: $(basename "$X64_DMG")
-    sha512: $X64_SHA512
-    sha256: $X64_SHA256
-    size: $X64_SIZE
-    blockMapSize: null
-  - url: $(basename "$ARM64_DMG")
-    sha512: $ARM64_SHA512
-    sha256: $ARM64_SHA256
-    size: $ARM64_SIZE
-    blockMapSize: null
-releaseDate: $RELEASE_DATE
-EOF
+printf "version: %s\nfiles:\n  - url: %s\n    sha512: %s\n    sha256: %s\n    size: %s\n    blockMapSize: null\n  - url: %s\n    sha512: %s\n    sha256: %s\n    size: %s\n    blockMapSize: null\nreleaseDate: %s\n" \
+    "$VERSION" \
+    "$(basename "$X64_ZIP")" \
+    "$X64_SHA512" \
+    "$X64_SHA256" \
+    "$X64_SIZE" \
+    "$(basename "$ARM64_ZIP")" \
+    "$ARM64_SHA512" \
+    "$ARM64_SHA256" \
+    "$ARM64_SIZE" \
+    "$RELEASE_DATE" > "$OUTPUT_FILE"
 
 echo "✅ Merged latest-mac.yml created successfully!"
 echo ""

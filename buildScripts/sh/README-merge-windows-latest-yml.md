@@ -28,7 +28,7 @@ Generates `latest.yml` for Windows updates (EXE installers).
 
 ### macOS: `merge-macos-latest-yml.sh`
 
-Generates `latest-mac.yml` for macOS updates (DMG installers).
+Generates `latest-mac.yml` for macOS updates (ZIP artifacts, required by electron-updater).
 
 ## Usage
 
@@ -37,6 +37,7 @@ Generates `latest-mac.yml` for macOS updates (DMG installers).
 Use this to fix an already-published release (like v1.1.3):
 
 **Windows:**
+
 ```bash
 cd buildScripts
 ./merge-windows-latest-yml.sh 1.1.3 v1.1.3
@@ -44,13 +45,15 @@ gh release upload v1.1.3 latest.yml --clobber
 ```
 
 **macOS:**
+
 ```bash
-cd buildScripts
+cd buildScripts/sh
 ./merge-macos-latest-yml.sh 1.1.3 v1.1.3
 gh release upload v1.1.3 latest-mac.yml --clobber
 ```
 
 This will:
+
 1. Download both x64 and ARM64 installers from the v1.1.3 GitHub release
 2. Calculate SHA256/SHA512 hashes
 3. Generate a merged YAML file in the current directory
@@ -60,12 +63,14 @@ This will:
 Use this when you have local build artifacts:
 
 **Windows:**
+
 ```bash
 cd buildScripts
 ./merge-windows-latest-yml.sh 1.1.3
 ```
 
 **macOS:**
+
 ```bash
 cd buildScripts
 ./merge-macos-latest-yml.sh 1.1.3
@@ -78,36 +83,38 @@ This will look for installer files in the `build/` directory.
 The scripts create YAML files in the current directory:
 
 **Windows (`latest.yml`):**
+
 ```yaml
 version: 1.1.3
 files:
-  - url: Power-Platform-ToolBox-1.1.3-x64-win.exe
-    sha512: <calculated-x64-sha512>
-    sha256: <calculated-x64-sha256>
-    size: 83575696
-    blockMapSize: null
-  - url: Power-Platform-ToolBox-1.1.3-arm64-win.exe
-    sha512: <calculated-arm64-sha512>
-    sha256: <calculated-arm64-sha256>
-    size: 86587224
-    blockMapSize: null
+    - url: Power-Platform-ToolBox-1.1.3-x64-win.exe
+      sha512: <calculated-x64-sha512>
+      sha256: <calculated-x64-sha256>
+      size: 83575696
+      blockMapSize: null
+    - url: Power-Platform-ToolBox-1.1.3-arm64-win.exe
+      sha512: <calculated-arm64-sha512>
+      sha256: <calculated-arm64-sha256>
+      size: 86587224
+      blockMapSize: null
 releaseDate: 2026-02-19T10:54:00.000Z
 ```
 
 **macOS (`latest-mac.yml`):**
+
 ```yaml
 version: 1.1.3
 files:
-  - url: Power-Platform-ToolBox-1.1.3-x64-mac.dmg
-    sha512: <calculated-x64-sha512>
-    sha256: <calculated-x64-sha256>
-    size: 110450111
-    blockMapSize: null
-  - url: Power-Platform-ToolBox-1.1.3-arm64-mac.dmg
-    sha512: <calculated-arm64-sha512>
-    sha256: <calculated-arm64-sha256>
-    size: 103969103
-    blockMapSize: null
+    - url: Power-Platform-ToolBox-1.1.3-x64-mac.zip
+      sha512: <calculated-x64-sha512>
+      sha256: <calculated-x64-sha256>
+      size: <calculated-x64-size>
+      blockMapSize: null
+    - url: Power-Platform-ToolBox-1.1.3-arm64-mac.zip
+      sha512: <calculated-arm64-sha512>
+      sha256: <calculated-arm64-sha256>
+      size: <calculated-arm64-size>
+      blockMapSize: null
 releaseDate: 2026-02-19T10:54:00.000Z
 ```
 
@@ -116,11 +123,13 @@ releaseDate: 2026-02-19T10:54:00.000Z
 ### Using GitHub CLI
 
 **Windows:**
+
 ```bash
 gh release upload v1.1.3 latest.yml --clobber
 ```
 
 **macOS:**
+
 ```bash
 gh release upload v1.1.3 latest-mac.yml --clobber
 ```
@@ -139,6 +148,7 @@ The `--clobber` flag replaces the existing file.
 To fix the current v1.1.3 release for both platforms:
 
 **Windows:**
+
 ```bash
 cd buildScripts
 ./merge-windows-latest-yml.sh 1.1.3 v1.1.3
@@ -146,6 +156,7 @@ gh release upload v1.1.3 latest.yml --clobber
 ```
 
 **macOS:**
+
 ```bash
 cd buildScripts
 ./merge-macos-latest-yml.sh 1.1.3 v1.1.3
@@ -156,7 +167,7 @@ After uploading, users who check for updates will receive the correct installer 
 
 ## How It Works
 
-1. **Locates Installers**: Finds or downloads both x64 and ARM64 installers (EXE for Windows, DMG for macOS)
+1. **Locates Installers**: Finds or downloads both x64 and ARM64 installers (EXE for Windows, ZIP for macOS)
 2. **Calculates Hashes**: Computes SHA256 and SHA512 checksums for integrity verification
 3. **Generates YAML**: Creates a YAML file with both file entries
 4. **Architecture Detection**: electron-updater automatically selects the correct installer
@@ -166,12 +177,14 @@ After uploading, users who check for updates will receive the correct installer 
 The electron-updater library automatically detects the user's architecture:
 
 **Windows:**
+
 - On x64 systems: `process.arch === "x64"` → downloads `*-x64-win.exe`
 - On ARM64 systems: `process.arch === "arm64"` → downloads `*-arm64-win.exe`
 
 **macOS:**
-- On Intel Macs: `process.arch === "x64"` → downloads `*-x64-mac.dmg`
-- On Apple Silicon: `process.arch === "arm64"` → downloads `*-arm64-mac.dmg`
+
+- On Intel Macs: `process.arch === "x64"` → downloads `*-x64-mac.zip`
+- On Apple Silicon: `process.arch === "arm64"` → downloads `*-arm64-mac.zip`
 
 This is done by matching the architecture string in the filename.
 
@@ -180,6 +193,7 @@ This is done by matching the architecture string in the filename.
 ### "Failed to download x64 installer/DMG"
 
 The release tag or version doesn't exist on GitHub. Check:
+
 - The release tag is correct (e.g., `v1.1.3` not `1.1.3`)
 - The release has been published (not a draft)
 - The installers have been uploaded to the release
@@ -189,6 +203,7 @@ The release tag or version doesn't exist on GitHub. Check:
 When using local files, ensure you've run the build first:
 
 **Windows:**
+
 ```bash
 pnpm run build
 pnpm run package:win       # For x64
@@ -196,6 +211,7 @@ pnpm run package:win-arm64 # For ARM64
 ```
 
 **macOS:**
+
 ```bash
 pnpm run build
 pnpm run package:mac       # Builds both x64 and ARM64
