@@ -33,9 +33,6 @@ jobs:
                   node-version: "20"
                   registry-url: "https://registry.npmjs.org"
 
-            - name: Install pnpm
-              run: npm install -g pnpm@10.18.3
-
             - name: Get version
               id: version
               run: |
@@ -47,6 +44,4 @@ jobs:
               working-directory: ./packages
               run: |
                   echo "Publishing @pptb/types@${{ steps.version.outputs.version }} with tag ${{ inputs.tag }} to npm..."
-                  pnpm publish --access public --tag ${{ inputs.tag }} --no-git-checks --provenance
-              env:
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+                  npm publish --access public --tag ${{ inputs.tag }} --provenance
