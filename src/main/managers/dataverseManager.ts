@@ -418,7 +418,6 @@ export class DataverseManager {
         const { connection, accessToken } = await this.getConnectionWithToken(connectionId);
         const entitySetName = this.getEntitySetName(entityLogicalName);
         const url = this.buildApiUrl(connection, `api/data/${DATAVERSE_API_VERSION}/${entitySetName}(${id})`);
-
         await this.makeHttpRequest(url, "DELETE", accessToken);
     }
 
@@ -437,6 +436,7 @@ export class DataverseManager {
             usersettingscollection: "usersettingscollection",
             principalobjectaccess: "principalobjectaccessset",
             webresource: "webresourceset",
+            relationshipdefinition: "RelationshipDefinitions",
         };
 
         const lowerName = entityLogicalName.toLowerCase();
