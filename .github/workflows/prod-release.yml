@@ -44,11 +44,11 @@ jobs:
               run: |
                   TOOLBOX_VERSION=$(node -p "require('./package.json').version")
                   TYPES_VERSION=$(node -p "require('./packages/package.json').version")
-                  
+
                   # Extract major.minor.patch from both versions (ignore pre-release tags)
                   TOOLBOX_BASE=$(echo "$TOOLBOX_VERSION" | cut -d'-' -f1)
                   TYPES_BASE=$(echo "$TYPES_VERSION" | cut -d'-' -f1)
-                  
+
                   if [ "$TOOLBOX_BASE" != "$TYPES_BASE" ]; then
                     echo "❌ Error: @pptb/types version ($TYPES_VERSION) does not match ToolBox version ($TOOLBOX_VERSION)"
                     echo "The base version (major.minor.patch) must be identical for stable releases."
@@ -58,7 +58,7 @@ jobs:
                     echo "2. Commit the change and push"
                     exit 1
                   fi
-                  
+
                   echo "✅ Version validation passed: ToolBox $TOOLBOX_VERSION matches @pptb/types $TYPES_VERSION"
 
     build:
@@ -829,10 +829,12 @@ jobs:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     publish-types:
-        needs: publish-release
+        needs: [publish-release]
+        permissions:
+            contents: read
+            id-token: write
         uses: ./.github/workflows/publish-npm-types.yml
         with:
             branch: main
             tag: latest
         secrets: inherit
-
