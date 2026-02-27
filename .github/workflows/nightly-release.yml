@@ -885,3 +885,13 @@ jobs:
                   make_latest: false
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    publish-types-beta:
+        needs: publish-release
+        if: needs.check-commits.outputs.should_build == 'true'
+        uses: ./.github/workflows/publish-npm-types.yml
+        with:
+            branch: dev
+            tag: beta
+        secrets: inherit
+

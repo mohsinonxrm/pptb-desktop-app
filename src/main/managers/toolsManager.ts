@@ -7,6 +7,7 @@ import { captureMessage, logInfo } from "../../common/sentryHelper";
 import { CspExceptions, Tool, ToolFeatures, ToolManifest } from "../../common/types";
 import { InstallIdManager } from "./installIdManager";
 import { ToolRegistryManager } from "./toolRegistryManager";
+import { VersionManager } from "./versionManager";
 
 /**
  * Package.json structure for tool validation
@@ -48,6 +49,8 @@ export class ToolManager extends EventEmitter {
             this.emit("tool:installed", manifest);
         });
         this.registryManager.on("tool:uninstalled", (toolId) => {
+            // Clear from cache when uninstalled
+            this.tools.delete(toolId);
             this.emit("tool:uninstalled", toolId);
         });
     }
@@ -73,6 +76,9 @@ export class ToolManager extends EventEmitter {
             readmeUrl: manifest.readme,
             publishedAt: manifest.publishedAt,
             createdAt: manifest.createdAt,
+            minAPI: manifest.minAPI,
+            maxAPI: manifest.maxAPI,
+            isSupported: VersionManager.isToolSupported(manifest.minAPI, manifest.maxAPI),
         };
 
         const cached = this.analyticsCache.get(tool.id);
@@ -140,6 +146,9 @@ export class ToolManager extends EventEmitter {
             repository: manifest.repository,
             website: manifest.website,
             readmeUrl: manifest.readme,
+            minAPI: manifest.minAPI,
+            maxAPI: manifest.maxAPI,
+            isSupported: VersionManager.isToolSupported(manifest.minAPI, manifest.maxAPI),
         };
 
         const cached = this.analyticsCache.get(tool.id);
@@ -192,6 +201,8 @@ export class ToolManager extends EventEmitter {
     getTool(toolId: string): Tool | undefined {
         const tool = this.tools.get(toolId);
         if (tool) {
+            // Always recompute isSupported in case ToolBox version changed
+            tool.isSupported = VersionManager.isToolSupported(tool.minAPI, tool.maxAPI);
             return tool;
         }
 
@@ -218,13 +229,21 @@ export class ToolManager extends EventEmitter {
         const installedManifests = this.registryManager.getInstalledToolsSync();
         installedManifests.forEach((manifest) => {
             const loaded = this.tools.get(manifest.id);
-            toolsById.set(manifest.id, loaded || this.createToolFromInstalledManifest(manifest));
+            if (loaded) {
+                // Always recompute isSupported in case ToolBox version changed
+                loaded.isSupported = VersionManager.isToolSupported(loaded.minAPI, loaded.maxAPI);
+                toolsById.set(manifest.id, loaded);
+            } else {
+                toolsById.set(manifest.id, this.createToolFromInstalledManifest(manifest));
+            }
         });
 
         // Include any loaded tools that might not be in the registry manifest
         // (e.g., local dev tools).
         this.tools.forEach((tool, id) => {
             if (!toolsById.has(id)) {
+                // Recompute isSupported for these tools too
+                tool.isSupported = VersionManager.isToolSupported(tool.minAPI, tool.maxAPI);
                 toolsById.set(id, tool);
             }
         });
@@ -251,8 +270,17 @@ export class ToolManager extends EventEmitter {
     /**
      * Fetch available tools from registry
      */
-    async fetchAvailableTools() {
-        return await this.registryManager.fetchRegistry();
+    async fetchAvailableTools(): Promise<Tool[]> {
+        const registryTools = await this.registryManager.fetchRegistry();
+        
+        // Convert ToolRegistryEntry[] to Tool[] and add isSupported field
+        return registryTools.map((registryTool) => {
+            const tool: Tool = {
+                ...registryTool,
+                isSupported: VersionManager.isToolSupported(registryTool.minAPI, registryTool.maxAPI),
+            };
+            return tool;
+        });
     }
 
     /**

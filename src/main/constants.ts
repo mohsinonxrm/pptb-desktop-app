@@ -24,6 +24,14 @@ export const SUPABASE_URL = process.env.SUPABASE_URL || "";
 export const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
 
 /**
+ * Minimum API version supported by this ToolBox version
+ * Tools requiring older API versions than this will not be supported
+ * This represents backwards compatibility - how far back we support
+ * 1.0.17 - File System breaking change was introduced
+ */
+export const MIN_SUPPORTED_API_VERSION = "1.0.17";
+
+/**
  * Azure Blob Storage Configuration
  * Base URL for the Azure Blob container that hosts tool packages and the remote registry.
  * The container should be publicly readable (anonymous read access for blobs).
