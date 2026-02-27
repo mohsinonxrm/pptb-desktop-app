@@ -11,6 +11,10 @@ on:
                 description: "npm tag (latest or beta)"
                 required: true
                 type: string
+            version:
+                description: "Version to publish for @pptb/types (must match app version)"
+                required: false
+                type: string
 
 permissions:
     contents: read
@@ -36,9 +40,19 @@ jobs:
             - name: Get version
               id: version
               run: |
-                  VERSION=$(node -p "require('./packages/package.json').version")
+                  if [ -n "${{ inputs.version }}" ]; then
+                    VERSION="${{ inputs.version }}"
+                  else
+                    VERSION=$(node -p "require('./package.json').version")
+                  fi
+
                   echo "version=$VERSION" >> $GITHUB_OUTPUT
                   echo "📦 Publishing @pptb/types version: $VERSION with tag: ${{ inputs.tag }}"
+
+            - name: Sync @pptb/types version to app version
+              working-directory: ./packages
+              run: |
+                  npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
 
             - name: Publish @pptb/types to npm
               working-directory: ./packages

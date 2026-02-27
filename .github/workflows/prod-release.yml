@@ -829,7 +829,7 @@ jobs:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     publish-types:
-        needs: [publish-release]
+        needs: [publish-release, create-release-draft]
         permissions:
             contents: read
             id-token: write
@@ -837,4 +837,5 @@ jobs:
         with:
             branch: main
             tag: latest
+            version: ${{ needs.create-release-draft.outputs.version }}
         secrets: inherit

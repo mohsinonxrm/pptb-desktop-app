@@ -887,7 +887,7 @@ jobs:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     publish-types-beta:
-        needs: [publish-release]
+        needs: [check-commits, publish-release, create-release-draft]
         if: needs.check-commits.outputs.should_build == 'true'
         permissions:
             contents: read
@@ -896,5 +896,5 @@ jobs:
         with:
             branch: dev
             tag: beta
+            version: ${{ needs.create-release-draft.outputs.new_version }}
         secrets: inherit
-
